@@ -2,9 +2,10 @@
     "name": "executable",
     "version": "1.0.0",
     "description": "",
+    "type": "module",
     "main": "index.js",
     "scripts": {
-        "server": "nodemon index.js --ignore views/ --ignore dist/",
+        "server": "node index.js",
         "client": "cd views/ && npm run dev"
     },
     "keywords": [],
@@ -15,6 +16,7 @@
         "cors": "^2.8.5",
         "express": "^4.18.2",
         "node-libcurl": "^3.0.0",
-        "nodemon": "^2.0.22"
+        "nodemon": "^2.0.22",
+        "open": "^9.1.0"
     }
 }

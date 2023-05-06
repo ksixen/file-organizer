@@ -1,17 +1,19 @@
 // Setting up our app requirements
-const express = require("express");
+import express from "express";
 const app = express();
-const Server = require("http").Server;
+import { Server } from "http";
 const server = new Server(app);
-const path = require("path");
-const fs = require("fs");
-const bodyParser = require("body-parser");
-const files = require("./build/types.json");
+import path from "path";
+import fs from "fs";
+import bodyParser from "body-parser";
+import files from "./types.json" assert { type: "json" };
+
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 /** Using free existed port, just for sure it doesn't hurt other apps🥺 */
 const port = 5000;
-const cors = require("cors");
+import cors from "cors";
+import open from "open";
 const corsOptions = {
     origin: "*",
     credentials: true, //access-control-allow-credentials:true
@@ -51,7 +53,6 @@ const checkFolderExists = (folderPath, onError) => {
     }, onError);
 };
 app.use(cors(corsOptions));
-app.use("/", express.static(getDir() + "/views"));
 app.get("/files", (req, res) => {
     const obj = JSON.parse(JSON.stringify(files));
     const dirFiles = tryCatcher(
@@ -100,14 +101,9 @@ app.post("/change", (req, res) => {
         const value = JSON.parse(JSON.stringify(files));
         value.path = body.path;
 
-        fs.writeFile(
-            "./build/types.json",
-            JSON.stringify(value),
-            "utf-8",
-            (err) => {
-                console.log(err);
-            }
-        );
+        writeFile("./types.json", JSON.stringify(value), "utf-8", (err) => {
+            console.log(err);
+        });
         res.status(200).send({ response: true });
     }
 });
@@ -121,15 +117,18 @@ app.get("/config", (req, res) => {
     const _array = [
         ...new Set(
             dirFiles.map((dir, index) => {
-                const file = tryCatcher(() => {
-                    const stat = fs.lstatSync(path.join(obj.path, dir));
-                    const isFile = stat.isFile();
-                    if (isFile) {
-                        return dir;
-                    } else {
-                        return null;
-                    }
-                });
+                const file = tryCatcher(
+                    () => {
+                        const stat = fs.lstatSync(path.join(obj.path, dir));
+                        const isFile = stat.isFile();
+                        if (isFile) {
+                            return dir;
+                        } else {
+                            return null;
+                        }
+                    },
+                    () => {}
+                );
                 if (file) {
                     const extension = regexp.exec(`${dir}`);
                     const folderExist = obj.folders.findIndex(
@@ -162,14 +161,9 @@ app.post("/paths", (req, res) => {
     value.folders = body;
 
     console.log(body, value);
-    fs.writeFile(
-        "./build/types.json",
-        JSON.stringify(value),
-        "utf-8",
-        (err) => {
-            console.log(err);
-        }
-    );
+    fs.writeFile("./types.json", JSON.stringify(value), "utf-8", (err) => {
+        console.log(err);
+    });
     res.status(200).send({ response: true });
 });
 app.post("/", (req, res) => {
@@ -180,7 +174,7 @@ app.post("/", (req, res) => {
     };
     const value = tryCatcher(
         () =>
-            fs.readFileSync("./build/types.json", {
+            fs.readFileSync("./types.json", {
                 encoding: "utf8",
             }),
         onError
@@ -239,15 +233,9 @@ app.post("/", (req, res) => {
     });
 });
 
-app.get("/", function (req, res) {
-    res.sendFile(getDir() + "/views/dist/index.html");
-});
-
-// Using a function to set default app path
-function getDir() {
-    if (process.pkg) {
-        return path.resolve(process.execPath + "/..");
-    } else {
-        return path.join(require.main ? require.main.path : process.cwd());
-    }
-}
+(async () => {
+    await open("https://file-organizer-kovfqkc1j-ksixen.vercel.app/", {
+        app: "file-organizer",
+        wait: true
+    });
+})();

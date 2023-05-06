@@ -30,7 +30,7 @@ export class API {
     }
 
     changeDirectoryPath(path: string) {
-        return this.useRequest<{ error?: string; response: string }>(
+        return this.useRequest<{ error?: string; response: string | string[] }>(
             "POST",
             `/change`,
             {

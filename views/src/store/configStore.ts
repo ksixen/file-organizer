@@ -14,6 +14,7 @@ type Actions = {
     addFolder: (folder: IFolder) => void;
     removeFolder: (id: string) => void;
     init: (state: State) => void;
+    updateExistingFiles: (values: string[]) => void;
 };
 export const useConfigStore = create(
     immer<State & Actions>((set) => ({
@@ -53,6 +54,12 @@ export const useConfigStore = create(
                 state.existingFiles = state.existingFiles.filter(
                     (v) => v !== folder.ext,
                 );
+                return state;
+            });
+        },
+        updateExistingFiles: (values) => {
+            set((state) => {
+                state.existingFiles = values;
                 return state;
             });
         },

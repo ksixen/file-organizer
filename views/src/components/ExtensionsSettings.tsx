@@ -14,6 +14,7 @@ const ExtensionsSettings = React.memo(() => {
         removeFolder,
         init,
         addFolder,
+        updateExistingFiles
     } = useConfigStore();
     const handleSubmit = () => {
         new API().changeExtensions(folders);
@@ -76,12 +77,12 @@ const ExtensionsSettings = React.memo(() => {
                             {existingFiles.map((val) => (
                                 <ListItem
                                     key={val}
-                                    item={{ ext: val, folder: "", id: '0' }}
+                                    item={{ ext: val, folder: "", id: "0" }}
                                     addFolder={addFolder}
                                 />
                             ))}
                             <ListItem
-                                item={{ ext: "", folder: "", id: '0' }}
+                                item={{ ext: "", folder: "", id: "0" }}
                                 addFolder={addFolder}
                             />
                         </tbody>
@@ -94,7 +95,10 @@ const ExtensionsSettings = React.memo(() => {
                     <br />
                 </div>
             </section>
-            <DirectoryEditor currentDirectory={path} />
+            <DirectoryEditor
+                currentDirectory={path}
+                updateExistingFiles={updateExistingFiles}
+            />
         </>
     );
 });

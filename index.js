@@ -80,41 +80,13 @@ app.get("/files", (req, res) => {
         .filter((i) => !!i);
     res.status(200).send(_array);
 });
-app.post("/change", (req, res) => {
-    const body = req.body;
-    const onError = () => {
-        console.trace();
-        res.status(400).send("bad news(((");
-        return;
-    };
-    if (body.path && !pathRegex.test(body.path)) {
-        onError();
-    } else {
-        const isPathExists = checkFolderExists(body.path, () => {});
-        if (!isPathExists) {
-            res.status(400).send({
-                response: "Folder doesn't exists",
-                error: true,
-            });
-            return false;
-        }
-        const value = JSON.parse(JSON.stringify(files));
-        value.path = body.path;
-
-        writeFile("./types.json", JSON.stringify(value), "utf-8", (err) => {
-            console.log(err);
-        });
-        res.status(200).send({ response: true });
-    }
-});
-app.get("/config", (req, res) => {
-    const obj = JSON.parse(JSON.stringify(files));
+const getExistedFiles = (obj) => {
     const dirFiles = tryCatcher(
         () => fs.readdirSync(obj.path),
         (err) => console.log(err)
     );
     const regexp = /\.([\w-]+)$/;
-    const _array = [
+    return [
         ...new Set(
             dirFiles.map((dir, index) => {
                 const file = tryCatcher(
@@ -140,13 +112,59 @@ app.get("/config", (req, res) => {
                 }
             })
         ),
-    ].filter((i) => {
-        console.log(i);
-        return !!i;
-    });
+    ].filter((i) => !!i);
+};
+app.post("/change", (req, res) => {
+    const body = req.body;
+    const onError = () => {
+        console.trace();
+        res.status(400).send("bad news(((");
+        return;
+    };
+    if (body.path && !pathRegex.test(body.path)) {
+        onError();
+    } else {
+        const isPathExists = checkFolderExists(body.path, () => {});
+        if (!isPathExists) {
+            res.status(400).send({
+                response: "Folder doesn't exists",
+                error: true,
+            });
+            return false;
+        }
+        const value = tryCatcher(
+            () =>
+                JSON.parse(
+                    fs.readFileSync("./types.json", {
+                        encoding: "utf-8",
+                    })
+                ),
+            (err) => console.log(err)
+        );
+        value.path = body.path;
 
+        fs.writeFile("./types.json", JSON.stringify(value), "utf-8", (err) => {
+            console.log(err);
+        });
+        
+    const _array = getExistedFiles(value);
+        res.status(200).send({ response: _array });
+    }
+});
+
+app.get("/config", (req, res) => {
+    const obj = tryCatcher(
+        () =>
+            JSON.parse(
+                fs.readFileSync("./types.json", {
+                    encoding: "utf-8",
+                })
+            ),
+        (err) => console.log(err)
+    );
+    const _array = getExistedFiles(obj);
     res.status(200).send({
-        ...files,
+        ...obj,
         existingFiles: _array,
     });
 });
@@ -157,19 +175,28 @@ app.post("/paths", (req, res) => {
         res.status(400).send("bad news(((");
         return;
     };
-    const value = JSON.parse(JSON.stringify(files));
+    const value = tryCatcher(
+        () =>
+            JSON.parse(
+                fs.readFileSync("./types.json", {
+                    encoding: "utf-8",
+                })
+            ),
+        (err) => console.log(err)
+    );
     value.folders = body;
 
-    console.log(body, value);
     fs.writeFile("./types.json", JSON.stringify(value), "utf-8", (err) => {
         console.log(err);
     });
     res.status(200).send({ response: true });
 });
 app.post("/", (req, res) => {
-    const onError = () => {
+    const onError = (e) => {
         // console.log(error, errorDirFiles);
-        res.status(400).send("bad news(((");
+        res.status(400).send({
+            response: e
+        });
         return;
     };
     const value = tryCatcher(
@@ -233,9 +260,9 @@ app.post("/", (req, res) => {
     });
 });
 
-(async () => {
-    await open("https://file-organizer-kovfqkc1j-ksixen.vercel.app/", {
-        app: "file-organizer",
-        wait: true
-    });
-})();
+// (async () => {
+//     await open("https://file-organizer-kovfqkc1j-ksixen.vercel.app/", {
+//         app: "file-organizer",
+//         wait: true,
+//     });
+// })();

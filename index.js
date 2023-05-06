@@ -260,9 +260,9 @@ app.post("/", (req, res) => {
     });
 });
 
-// (async () => {
-//     await open("https://file-organizer-kovfqkc1j-ksixen.vercel.app/", {
-//         app: "file-organizer",
-//         wait: true,
-//     });
-// })();
+(async () => {
+    await open("https://file-organizer-kovfqkc1j-ksixen.vercel.app/", {
+        app: "file-organizer",
+        wait: true,
+    });
+})();

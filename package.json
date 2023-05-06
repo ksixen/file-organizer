@@ -4,7 +4,8 @@
     "description": "",
     "main": "index.js",
     "scripts": {
-        "server": "nodemon index.js --ignore views/ --ignore dist/ && cd views/ & yarn dev"
+        "server": "nodemon index.js --ignore views/ --ignore dist/",
+        "client": "cd views/ && npm run dev"
     },
     "keywords": [],
     "author": "",

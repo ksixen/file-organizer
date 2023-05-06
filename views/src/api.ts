@@ -5,9 +5,7 @@ export class API {
     useRequest<T>(method: string, path: string, params?: unknown): Promise<T> {
         return new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
-            const localhostURL = `${window.location.protocol}//${
-                window.location.hostname
-            }:${5000}`;
+            const localhostURL = `http://localhost:5000`;
             xhr.open(method, `${localhostURL}${path ? path : ""}`);
             xhr.onload = () => resolve(JSON.parse(xhr.responseText));
             xhr.onerror = () => reject(xhr.responseText);

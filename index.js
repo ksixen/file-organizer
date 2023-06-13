@@ -6,263 +6,181 @@ const server = new Server(app);
 import path from "path";
 import fs from "fs";
 import bodyParser from "body-parser";
-import files from "./types.json" assert { type: "json" };
-
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
-/** Using free existed port, just for sure it doesn't hurt other apps🥺 */
-const port = 5000;
 import cors from "cors";
 import open from "open";
-const corsOptions = {
-    origin: "*",
-    credentials: true, //access-control-allow-credentials:true
-    optionSuccessStatus: 200,
+
+import {
+  checkFolderExists,
+  getConfig,
+  tryCatcher,
+  updateConfig,
+  getExistedFiles,
+} from "./utils.js";
+
+//#region CONSTANT
+const APP_URL = "https://file-organizer.vercel.app/";
+const PATH = {
+  FILES: "/files",
+  CHANGE: "/change",
+  CONFIG: "/config",
+  PATHS: "/paths",
 };
+//#endregion
 
-const pathRegex = /((?:[\w]\:|\/)(\/[a-z_\-\s0-9\.\/]+)+)/i;
+//#region REGEX
+const directoryPathRegex = /((?:[\w]\:|\/)(\/[a-z_\-\s0-9\.\/]+)+)/i;
+const fileExtensionRegexp = /\.([a-zA-Z1-90]+)+$/;
+//#endregion
+
+//#region Express App Configuration
+/** Using free existed port, just for sure it doesn't hurt other apps🥺 */
+const port = 5000;
+const corsOptions = {
+  origin: "*",
+  credentials: true, //access-control-allow-credentials:true
+  optionSuccessStatus: 200,
+};
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+app.use(cors(corsOptions));
+//#endregion
+
 // Setting up our port
-
 const listener = server.listen(port, () =>
-    console.log(
-        `Server started on: http://localhost:${listener.address().port}`
-    )
+  console.log(`Server started on: http://localhost:${listener.address().port}`)
 );
 
-// Configuiring simple express routes
-// getDir() function is used here along with package.json.pkg.assets
-const tryCatcher = (func, onError) => {
-    const data = {
-        value: null,
-    };
-    try {
-        data.value = func();
-    } catch (error) {
-        onError(error);
-    }
-    return data.value;
-};
-const checkFolderExists = (folderPath, onError) => {
-    return tryCatcher(() => {
-        const stat = fs.lstatSync(folderPath);
-        if (stat.isDirectory()) {
-            return true;
+app.get(PATH.FILES, (req, res) => {
+  const obj = getConfig();
+  const dirFiles = tryCatcher(
+    () => fs.readdirSync(obj.path),
+    (err) => console.log(err)
+  );
+  const _array = Array.from(dirFiles)
+    .map((filePath) => {
+      const file = tryCatcher(() => {
+        const stat = fs.lstatSync(path.join(obj.path, filePath));
+        const isFile = stat.isFile();
+        if (isFile) {
+          return filePath;
         } else {
-            return false;
+          return null;
         }
-    }, onError);
-};
-app.use(cors(corsOptions));
-app.get("/files", (req, res) => {
-    const obj = JSON.parse(JSON.stringify(files));
-    const dirFiles = tryCatcher(
-        () => fs.readdirSync(obj.path),
-        (err) => console.log(err)
-    );
-    const regexp = /\.([a-zA-Z1-90]+)+$/;
-    const _array = Array.from(dirFiles)
-        .map((dir) => {
-            const file = tryCatcher(() => {
-                const stat = fs.lstatSync(path.join(obj.path, dir));
-                const isFile = stat.isFile();
-                if (isFile) {
-                    return dir;
-                } else {
-                    return null;
-                }
-            });
-            if (file) {
-                return regexp.exec(`${dir}`)[1];
-            } else {
-                return null;
-            }
-        })
-        .filter((i) => !!i);
-    res.status(200).send(_array);
+      });
+      if (file) {
+        return fileExtensionRegexp.exec(`${filePath}`)[1];
+      } else {
+        return null;
+      }
+    })
+    .filter((i) => !!i);
+  res.status(200).send(_array);
 });
-const getExistedFiles = (obj) => {
-    const dirFiles = tryCatcher(
-        () => fs.readdirSync(obj.path),
-        (err) => console.log(err)
-    );
-    const regexp = /\.([\w-]+)$/;
-    return [
-        ...new Set(
-            dirFiles.map((dir, index) => {
-                const file = tryCatcher(
-                    () => {
-                        const stat = fs.lstatSync(path.join(obj.path, dir));
-                        const isFile = stat.isFile();
-                        if (isFile) {
-                            return dir;
-                        } else {
-                            return null;
-                        }
-                    },
-                    () => {}
-                );
-                if (file) {
-                    const extension = regexp.exec(`${dir}`);
-                    const folderExist = obj.folders.findIndex(
-                        (v) => v.ext === extension[1]
-                    );
-                    return folderExist > -1 ? null : extension[1];
-                } else {
-                    return null;
-                }
-            })
-        ),
-    ].filter((i) => !!i);
-};
-app.post("/change", (req, res) => {
-    const body = req.body;
-    const onError = () => {
-        console.trace();
-        res.status(400).send("bad news(((");
-        return;
-    };
-    if (body.path && !pathRegex.test(body.path)) {
-        onError();
-    } else {
-        const isPathExists = checkFolderExists(body.path, () => {});
-        if (!isPathExists) {
-            res.status(400).send({
-                response: "Folder doesn't exists",
-                error: true,
-            });
-            return false;
-        }
-        const value = tryCatcher(
-            () =>
-                JSON.parse(
-                    fs.readFileSync("./types.json", {
-                        encoding: "utf-8",
-                    })
-                ),
-            (err) => console.log(err)
-        );
-        value.path = body.path;
-
-        fs.writeFile("./types.json", JSON.stringify(value), "utf-8", (err) => {
-            console.log(err);
-        });
-        
-    const _array = getExistedFiles(value);
-        res.status(200).send({ response: _array });
+app.post(PATH.CHANGE, (req, res) => {
+  const body = req.body;
+  const onError = () => {
+    console.trace();
+    res.status(400).send("bad news(((");
+    return;
+  };
+  if (body.path && !directoryPathRegex.test(body.path)) {
+    onError();
+  } else {
+    const isPathExists = checkFolderExists(body.path, () => {});
+    if (!isPathExists) {
+      res.status(400).send({
+        response: "Folder doesn't exists",
+        error: true,
+      });
+      return false;
     }
+    const value = getConfig();
+    value.path = body.path;
+
+    updateConfig(value);
+
+    const _array = getExistedFiles(value);
+    res.status(200).send({ response: _array });
+  }
 });
 
-app.get("/config", (req, res) => {
-    const obj = tryCatcher(
-        () =>
-            JSON.parse(
-                fs.readFileSync("./types.json", {
-                    encoding: "utf-8",
-                })
-            ),
-        (err) => console.log(err)
-    );
-    const _array = getExistedFiles(obj);
-    res.status(200).send({
-        ...obj,
-        existingFiles: _array,
-    });
+app.get(PATH.CONFIG, (req, res) => {
+  const obj = getConfig();
+  console.log(obj)
+  const _array = getExistedFiles(obj);
+  res.status(200).send({
+    ...obj,
+    existingFiles: _array,
+  });
 });
-app.post("/paths", (req, res) => {
-    const body = req.body;
-    const onError = () => {
-        console.trace();
-        res.status(400).send("bad news(((");
-        return;
-    };
-    const value = tryCatcher(
-        () =>
-            JSON.parse(
-                fs.readFileSync("./types.json", {
-                    encoding: "utf-8",
-                })
-            ),
-        (err) => console.log(err)
-    );
-    value.folders = body;
+app.post(PATH.PATHS, (req, res) => {
+  const body = req.body;
+  const onError = () => {
+    console.trace();
+    res.status(400).send("bad news(((");
+    return;
+  };
+  const value = getConfig();
+  value.folders = body;
 
-    fs.writeFile("./types.json", JSON.stringify(value), "utf-8", (err) => {
-        console.log(err);
-    });
-    res.status(200).send({ response: true });
+  updateConfig(value);
+  res.status(200).send({ response: true });
 });
 app.post("/", (req, res) => {
-    const onError = (e) => {
-        // console.log(error, errorDirFiles);
-        res.status(400).send({
-            response: e
-        });
-        return;
-    };
-    const value = tryCatcher(
-        () =>
-            fs.readFileSync("./types.json", {
-                encoding: "utf8",
-            }),
-        onError
-    );
-    const plainObject = JSON.parse(value);
-    const dirFiles = tryCatcher(
-        () => fs.readdirSync(plainObject.path),
-        onError
-    );
+  const plainObject = getConfig();
+  const dirFiles = tryCatcher(() => fs.readdirSync(plainObject.path), onError);
 
-    const _array = Array.from(dirFiles)
-        .map((dir) => {
-            const file = tryCatcher(() => {
-                const stat = fs.lstatSync(path.join(plainObject.path, dir));
-                const isFile = stat.isFile();
-                if (isFile) {
-                    return dir;
-                } else {
-                    return null;
-                }
-            });
-            if (file) {
-                return dir;
-            } else {
-                return null;
-            }
-        })
-        .filter((i) => !!i);
-    plainObject.folders.forEach((key) => {
-        const folderPath = path.join(plainObject.path, key.folder);
-        const isFolderExists = checkFolderExists(folderPath, () => {});
-        if (!isFolderExists) {
-            try {
-                fs.mkdirSync(folderPath);
-            } catch (error) {
-                console.log(error);
-            }
+  const _array = Array.from(dirFiles)
+    .map((dir) => {
+      const file = tryCatcher(() => {
+        const stat = fs.lstatSync(path.join(plainObject.path, dir));
+        const isFile = stat.isFile();
+        if (isFile) {
+          return dir;
+        } else {
+          return null;
         }
-        _array.forEach((filename) => {
-            const regexp = new RegExp(`.${key.ext}+$`);
-            const oldPath = path.join(plainObject.path, filename);
-            const newPath = path.join(plainObject.path, key.folder, filename);
-            if (regexp.test(filename)) {
-                tryCatcher(
-                    () => fs.renameSync(oldPath, newPath),
-                    (err) => {
-                        console.log(err);
-                    }
-                );
-            }
-        });
+      });
+      if (file) {
+        return dir;
+      } else {
+        return null;
+      }
+    })
+    .filter((i) => !!i);
+  plainObject.folders.forEach((key) => {
+    const folderPath = path.join(plainObject.path, key.folder);
+    const isFolderExists = checkFolderExists(folderPath, () => {});
+    if (!isFolderExists) {
+      try {
+        fs.mkdirSync(folderPath);
+      } catch (error) {
+        console.log(error);
+      }
+    }
+    _array.forEach((filename) => {
+      const regexp = new RegExp(`.${key.ext}+$`);
+      const oldPath = path.join(plainObject.path, filename);
+      const newPath = path.join(plainObject.path, key.folder, filename);
+      if (regexp.test(filename)) {
+        tryCatcher(
+          () => fs.renameSync(oldPath, newPath),
+          (err) => {
+            console.log(err);
+          }
+        );
+      }
     });
+  });
 
-    res.status(200).send({
-        response: true,
-    });
+  res.status(200).send({
+    response: true,
+  });
 });
 
 (async () => {
-    await open("https://file-organizer-kovfqkc1j-ksixen.vercel.app/", {
-        app: "file-organizer",
-        wait: true,
-    });
+  await open(APP_URL, {
+    app: "file-organizer",
+    wait: true,
+  });
 })();
